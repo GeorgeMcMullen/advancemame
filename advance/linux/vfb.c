@@ -52,6 +52,18 @@
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
+#if HAVE_TERMIOS_H
+#include <termios.h>
+#endif
+#if HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
+#if HAVE_SYS_KD_H
+#include <sys/kd.h>
+#endif
+#if HAVE_SYS_VT_H
+#include <sys/vt.h>
+#endif
 
 /***************************************************************************/
 /* State */
@@ -791,6 +803,7 @@ adv_error fb_mode_set(const fb_video_mode* mode)
 	unsigned req_xres;
 	unsigned req_yres;
 	unsigned req_bits_per_pixel;
+	adv_bool is_raspberry_active;
 
 	assert(fb_is_active() && !fb_mode_is_active());
 
@@ -818,8 +831,11 @@ adv_error fb_mode_set(const fb_video_mode* mode)
 
 	fb_log(0, &fb_state.varinfo);
 
+	/* if raspberry needs special processing */
+	is_raspberry_active = fb_state.is_raspberry && !crtc_is_fake(&mode->crtc);
+
 	/* if it's a programmable mode on Raspberry */
-	if (fb_state.is_raspberry && !crtc_is_fake(&mode->crtc)) {
+	if (is_raspberry_active) {
 		char* opt;
 		char cmd[256];
 
@@ -978,14 +994,18 @@ void fb_mode_done(adv_bool restore)
 	}
 
 	if (restore) {
+		adv_bool is_raspberry_active;
+
 		log_std(("video:fb: restore old\n"));
 
 		fb_log(0, &fb_state.oldinfo);
 
-		if (fb_state.is_raspberry
+		/* if raspberry needs special processing */
+		is_raspberry_active = fb_state.is_raspberry
 			&& fb_state.old_need_restore
-			&& fb_state.oldtimings[0] != 0 && fb_state.olddrive[0] != 0
-		) {
+			&& fb_state.oldtimings[0] != 0 && fb_state.olddrive[0] != 0;
+
+		if (is_raspberry_active) {
 			char* opt;
 			char cmd[256];
 
@@ -1010,6 +1030,71 @@ void fb_mode_done(adv_bool restore)
 
 		fb_setvar(&fb_state.oldinfo);
 		/* ignore error */
+
+
+		if (is_raspberry_active) {
+			struct vt_stat vt;
+			int new_vt;
+			int f;
+
+			/*
+			 * Set again the console to re-enable it after a graphics mode.
+			 * Without this the screen remain black, even if the right video
+			 * mode is set.
+			 *
+			 * See:
+			 * "Programmatically turn screen off"
+			 * https://www.raspberrypi.org/forums/viewtopic.php?f=41&t=7570
+			 */
+
+			do {
+				f = open("/dev/tty", O_RDONLY | O_NONBLOCK);
+				if (f == -1) {
+					log_std(("ERROR:video:fb: open(/dev/tty) failed. %s.\n", strerror(errno)));
+					break;
+				}
+				
+				/* get active vt */
+				if (ioctl(f, VT_GETSTATE, &vt) != 0) {
+					log_std(("ERROR:video:fb: ioctl(VT_GETSTATE) failed. %s.\n", strerror(errno)));
+					close(f);
+					break;
+				}
+
+				log_std(("video:fb: active vt = %d\n", vt.v_active));
+
+				/* select a different vt */
+				if (vt.v_active == 1)
+					new_vt = 2;
+				else
+					new_vt = 1;
+
+				log_std(("video:fb: new vt = %d\n", new_vt));
+
+				/* change the vt */
+				if (ioctl(f, VT_ACTIVATE, new_vt) == 0) {
+					/* wait for the console to be activated */
+					if (ioctl(f, VT_WAITACTIVE, new_vt) != 0) {
+						log_std(("ERROR:video:fb: ioctl(VT_WAITACTIVE, %d) failed. %s.\n", new_vt, strerror(errno)));
+					}
+				} else {
+					log_std(("ERROR:video:fb: ioctl(VT_ACTIVATE, %d) failed. %s.\n", new_vt, strerror(errno)));
+				}
+
+				/* set the original vt */
+				new_vt = vt.v_active;
+				if (ioctl(f, VT_ACTIVATE, new_vt) == 0) {
+					/* wait for the console to be activated */
+					if (ioctl(f, VT_WAITACTIVE, new_vt) != 0) {
+						log_std(("ERROR:video:fb: ioctl(VT_WAITACTIVE, %d) failed. %s.\n", new_vt, strerror(errno)));
+					}
+				} else {
+					log_std(("ERROR:video:fb: ioctl(VT_ACTIVATE, %d) failed. %s.\n", new_vt, strerror(errno)));
+				}
+
+				close(f);
+			} while (0);
+		}
 	} else {
 		/* ensure to have the correct color, the keyboard driver */
 		/* when resetting the console changes some colors */
