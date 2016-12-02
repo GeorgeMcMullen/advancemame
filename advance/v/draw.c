@@ -741,7 +741,7 @@ void draw_graphics_calib(int s_x, int s_y, int s_dx, int s_dy)
 }
 
 /* Do a speed test */
-unsigned draw_graphics_speed(int s_x, int s_y, int s_dx, int s_dy)
+void draw_graphics_speed(int s_x, int s_y, int s_dx, int s_dy, unsigned* speed_memcpy, unsigned* speed_blit)
 {
 	draw_graphics_palette();
 
@@ -752,38 +752,61 @@ unsigned draw_graphics_speed(int s_x, int s_y, int s_dx, int s_dy)
 		struct video_pipeline_struct pipeline;
 		uint8* data;
 
-		size = s_dx * s_dy * video_bytes_per_pixel();
+		size = s_dy * video_bytes_per_scanline();
 
 		data = malloc(size);
 		for(i=0;i<size;++i)
 			data[i] = i;
 
-		video_pipeline_init(&pipeline);
-
-		video_pipeline_direct(&pipeline, s_dx, s_dy, s_dx, s_dy, s_dx*video_bytes_per_pixel(), video_bytes_per_pixel(), video_color_def(), 0);
-
-		/* fill the cache */
-		video_pipeline_blit(&pipeline, s_x, s_y, data);
+		/* fill cache */
+		memcpy(video_write_line(0), data, size);
 
 		count = 0;
 		start = target_clock();
-		end = start + TARGET_CLOCKS_PER_SEC * 2;
+		end = start + TARGET_CLOCKS_PER_SEC;
 		stop = start;
 		while (stop < end) {
-			video_pipeline_blit(&pipeline, s_x, s_y, data);
+			memcpy(video_write_line(0), data, size);
 			++count;
 			stop = target_clock();
 		}
 
-		video_pipeline_done(&pipeline);
+		if (stop == start)
+			*speed_memcpy = 0;
+		else
+			*speed_memcpy = size * count * (double)TARGET_CLOCKS_PER_SEC / (stop - start);
+
+		/* 24 bits modes are not supported by the blit engine */
+		if (video_bytes_per_pixel() != 3) {
+			video_pipeline_init(&pipeline);
+
+			video_pipeline_direct(&pipeline, s_dx, s_dy, s_dx, s_dy, video_bytes_per_scanline(), video_bytes_per_pixel(), video_color_def(), 0);
+
+			/* fill cache */
+			video_pipeline_blit(&pipeline, s_x, s_y, data);
+
+			count = 0;
+			start = target_clock();
+			end = start + TARGET_CLOCKS_PER_SEC;
+			stop = start;
+			while (stop < end) {
+				video_pipeline_blit(&pipeline, s_x, s_y, data);
+				++count;
+				stop = target_clock();
+			}
+
+			video_pipeline_done(&pipeline);
+
+			if (stop == start)
+				*speed_blit = 0;
+			else
+				*speed_blit = size * count * (double)TARGET_CLOCKS_PER_SEC / (stop - start);
+		} else {
+			*speed_blit = 0;
+		}
+
 		free(data);
-
-		size = size * count * (double)TARGET_CLOCKS_PER_SEC / (stop-start);
-
-		return size;
 	}
-
-	return 0;
 }
 
 /* Draw a test screen */

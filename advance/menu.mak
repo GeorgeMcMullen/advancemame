@@ -525,12 +525,6 @@ MENU_ROOT_SRC = \
 	$(srcdir)/COPYING \
 	$(CONF_SRC)
 
-MENU_SRC = \
-	$(wildcard $(srcdir)/advance/menu/*.c) \
-	$(wildcard $(srcdir)/advance/menu/*.cc) \
-	$(wildcard $(srcdir)/advance/menu/*.h) \
-	$(wildcard $(srcdir)/advance/menu/*.dat)
-
 MENU_ADVANCE_SRC = \
 	$(srcdir)/advance/advance.mak \
 	$(srcdir)/advance/version.mak \
@@ -540,7 +534,7 @@ MENU_ADVANCE_SRC = \
 	$(srcdir)/advance/d2.mak
 
 MENU_CONTRIB_SRC = \
-	$(wildcard $(srcdir)/contrib/menu/*)
+	$(wildcard $(srcdir)/contrib/*)
 
 MENU_DOC_SRC = \
 	$(srcdir)/doc/advdev.d \
@@ -727,8 +721,7 @@ distmenu: $(DOCOBJ)/readmenu.txt $(DOCOBJ)/relemenu.txt $(DOCOBJ)/histmenu.txt $
 	mkdir $(MENU_DIST_DIR_SRC)/advance/zlib
 	cp $(ZLIB_SRC) $(MENU_DIST_DIR_SRC)/advance/zlib
 	mkdir $(MENU_DIST_DIR_SRC)/contrib
-	mkdir $(MENU_DIST_DIR_SRC)/contrib/menu
-	cp -R $(MENU_CONTRIB_SRC) $(MENU_DIST_DIR_SRC)/contrib/menu
+	cp -R $(MENU_CONTRIB_SRC) $(MENU_DIST_DIR_SRC)/contrib
 	rm -f $(MENU_DIST_FILE_SRC).tar.gz
 	tar cfzo $(MENU_DIST_FILE_SRC).tar.gz $(MENU_DIST_DIR_SRC)
 	rm -r $(MENU_DIST_DIR_SRC)

@@ -619,12 +619,13 @@ adv_error fb_init(int device_id, adv_output output, unsigned overlay_size, adv_c
 			return -1;
 		}
 
-		/* exclude PALETTE8 and BGR15 not supported by the hardare */
-		/* and add OVERLAY because the framebuffer is able to rescale to the original resolution */
-		fb_state.flags = VIDEO_DRIVER_FLAGS_MODE_BGR16 | VIDEO_DRIVER_FLAGS_MODE_BGR24 | VIDEO_DRIVER_FLAGS_MODE_BGR32
-			| VIDEO_DRIVER_FLAGS_PROGRAMMABLE_ALL
-			| VIDEO_DRIVER_FLAGS_OUTPUT_FULLSCREEN
-			| VIDEO_DRIVER_FLAGS_OUTPUT_OVERLAY;
+		/* exclude BGR15 not supported by the Raspberry hardware */
+		fb_state.flags = VIDEO_DRIVER_FLAGS_MODE_PALETTE8 | VIDEO_DRIVER_FLAGS_MODE_BGR16 | VIDEO_DRIVER_FLAGS_MODE_BGR24 | VIDEO_DRIVER_FLAGS_MODE_BGR32;
+
+		if (output == adv_output_auto || output == adv_output_overlay)
+			fb_state.flags |= VIDEO_DRIVER_FLAGS_OUTPUT_OVERLAY;
+		if (output == adv_output_auto || output == adv_output_fullscreen)
+			fb_state.flags |= VIDEO_DRIVER_FLAGS_PROGRAMMABLE_ALL | VIDEO_DRIVER_FLAGS_OUTPUT_FULLSCREEN;
 
 		/* keep track if we change timings */
 		fb_state.old_need_restore = 0;
@@ -890,6 +891,26 @@ adv_error fb_mode_set(const fb_video_mode* mode)
 			goto err_restore;
 		log_std(("video:fb: tvservice result \"%s\"\n", opt));
 		free(opt);
+
+		/*
+		 * Wait some time after the tvservice command to allow
+		 * the console driver to react.
+		 *
+		 * Without this wait, the next video mode change has effect,
+		 * but the the screen remain black, even if the right video mode
+		 * is set.
+		 *
+		 * Note that this delay is also required when using the
+		 * workaround of changing VT with "chvt 2; chvt 1", or resetting
+		 * the video mode with "fbset -depth 8; fbset -depth 16".
+		 *
+		 * A 100ms deley is enough, but we wait more for safety.
+		 *
+		 * See:
+		 * "Programmatically turn screen off"
+		 * https://www.raspberrypi.org/forums/viewtopic.php?f=41&t=7570
+		 */
+		target_usleep(500 * 1000);
 	}
 
 	/* save the minimun required data */
@@ -1026,6 +1047,26 @@ void fb_mode_done(adv_bool restore)
 				free(opt);
 			}
 			/* ignore error */
+
+			/*
+			 * Wait some time after the tvservice command to allow
+			 * the console driver to react.
+			 *
+			 * Without this wait, the next video mode change has effect,
+			 * but the the screen remain black, even if the right video mode
+			 * is set.
+			 *
+			 * Note that this delay is also required when using the
+			 * workaround of changing VT with "chvt 2; chvt 1", or resetting
+			 * the video mode with "fbset -depth 8; fbset -depth 16".
+			 *
+			 * A 100ms deley is enough, but we wait more for safety.
+			 *
+			 * See:
+			 * "Programmatically turn screen off"
+			 * https://www.raspberrypi.org/forums/viewtopic.php?f=41&t=7570
+			 */
+			target_usleep(500 * 1000);
 		}
 
 		fb_setvar(&fb_state.oldinfo);
@@ -1393,7 +1434,6 @@ adv_error fb_mode_generate(fb_video_mode* mode, const adv_crtc* crtc, unsigned f
 
 	switch (flags & MODE_FLAGS_INDEX_MASK) {
 	case MODE_FLAGS_INDEX_PALETTE8 :
-	case MODE_FLAGS_INDEX_BGR8 :
 		if ((fb_state.flags & VIDEO_DRIVER_FLAGS_MODE_PALETTE8) == 0) {
 			error_nolog_set("Index mode not supported.\n");
 			return -1;
@@ -1479,7 +1519,7 @@ void fb_crtc_container_insert_default(adv_crtc_container* cc)
 {
 	log_std(("video:fb: fb_crtc_container_insert_default()\n"));
 
-	crtc_container_insert_default_modeline_svga(cc);
+	/* no default mode because or we are fullscreen programmable, or overlay with generated */
 }
 
 /***************************************************************************/

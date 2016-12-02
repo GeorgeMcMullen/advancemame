@@ -637,9 +637,7 @@ OBJDIRS += \
 	$(OBJ)/machine \
 	$(OBJ)/vidhrdw \
 	$(OBJ)/sndhrdw \
-	$(OBJ)/debug
-ifeq ($(CONF_EMU),mess)
-OBJDIRS += \
+	$(OBJ)/debug \
 	$(OBJ)/mess \
 	$(OBJ)/mess/systems \
 	$(OBJ)/mess/devices \
@@ -656,7 +654,6 @@ OBJDIRS += \
 	$(OBJ)/mess/tools/mkimage \
 	$(OBJ)/mess/sound \
 	$(OBJ)/mess/cpu
-endif
 
 ifeq ($(CONF_DEBUGGER),yes)
 EMUDEFS += -DMAME_DEBUG
@@ -742,6 +739,7 @@ EMU_ADVANCE_SRC = \
 	$(srcdir)/advance/advance.mak \
 	$(srcdir)/advance/version.mak \
 	$(srcdir)/advance/emu.mak \
+	$(srcdir)/advance/menu.mak \
 	$(srcdir)/advance/v.mak \
 	$(srcdir)/advance/cfg.mak \
 	$(srcdir)/advance/k.mak \
@@ -752,26 +750,26 @@ EMU_ADVANCE_SRC = \
 	$(srcdir)/advance/line.mak \
 	$(srcdir)/advance/d2.mak
 
-ifeq ($(CONF_EMU),mess)
-EMU_ADVANCE_SRC += $(srcdir)/advance/advmess.dif $(srcdir)/advance/mess.dif
-else
-EMU_ADVANCE_SRC += $(srcdir)/advance/advmame.dif
-endif
+EMU_ADVANCE_SRC += \
+	$(srcdir)/advance/advmame.dif \
+	$(srcdir)/advance/advmess.dif \
+	$(srcdir)/advance/mess.dif
 
 EMU_CONTRIB_SRC = \
-	$(wildcard $(srcdir)/contrib/mame/*)
+	$(wildcard $(srcdir)/contrib/*)
 
-ifeq ($(CONF_EMU),mess)
 EMU_SUPPORT_SRC += \
-	$(srcdir)/support/advmess.1 \
-	$(srcdir)/support/advmessv.bat $(srcdir)/support/advmessc.bat \
-	$(srcdir)/support/sysinfo.dat
-else
-EMU_SUPPORT_SRC += \
+	$(srcdir)/support/debian \
 	$(srcdir)/support/event.dat \
 	$(srcdir)/support/history.dat \
-	$(srcdir)/support/hiscore.dat
-endif
+	$(srcdir)/support/hiscore.dat \
+	$(srcdir)/support/sysinfo.dat  \
+	$(srcdir)/support/category.ini \
+	$(srcdir)/support/advmess.1 \
+	$(srcdir)/support/advmessv.bat \
+	$(srcdir)/support/advmessc.bat \
+	$(srcdir)/support/advmenuv.bat \
+	$(srcdir)/support/advmenuc.bat
 
 EMU_DOC_SRC = \
 	$(srcdir)/doc/advdev.d \
@@ -802,6 +800,7 @@ EMU_DOC_SRC = \
 	$(srcdir)/doc/advmame.txt \
 	$(srcdir)/doc/authors.txt \
 	$(srcdir)/doc/script.txt \
+	$(srcdir)/doc/advmenu.txt \
 	$(srcdir)/doc/reademu.txt \
 	$(srcdir)/doc/releemu.txt \
 	$(srcdir)/doc/histemu.txt \
@@ -820,6 +819,10 @@ EMU_DOC_SRC = \
 	$(srcdir)/doc/cardwin.txt \
 	$(srcdir)/doc/install.txt \
 	$(srcdir)/doc/svgawin.txt \
+	$(srcdir)/doc/advmenu.d \
+	$(srcdir)/doc/histmenu.d \
+	$(srcdir)/doc/readmenu.d \
+	$(srcdir)/doc/relemenu.d \
 	$(srcdir)/doc/advdev.html \
 	$(srcdir)/doc/license.html \
 	$(srcdir)/doc/advmame.html \
@@ -843,6 +846,10 @@ EMU_DOC_SRC = \
 	$(srcdir)/doc/cardwin.html \
 	$(srcdir)/doc/install.html \
 	$(srcdir)/doc/svgawin.html \
+	$(srcdir)/doc/advmenu.html \
+	$(srcdir)/doc/histmenu.html \
+	$(srcdir)/doc/readmenu.html \
+	$(srcdir)/doc/relemenu.html \
 	$(srcdir)/doc/advdev.1 \
 	$(srcdir)/doc/advmame.1 \
 	$(srcdir)/doc/advv.1 \
@@ -850,7 +857,8 @@ EMU_DOC_SRC = \
 	$(srcdir)/doc/advk.1 \
 	$(srcdir)/doc/advs.1 \
 	$(srcdir)/doc/advj.1 \
-	$(srcdir)/doc/advm.1
+	$(srcdir)/doc/advm.1 \
+	$(srcdir)/doc/advmenu.1 \
 
 EMU_DOC_BIN = \
 	$(DOCOBJ)/advdev.txt \
@@ -867,6 +875,10 @@ EMU_DOC_BIN = \
 	$(DOCOBJ)/install.txt \
 	$(DOCOBJ)/advv.txt \
 	$(DOCOBJ)/advcfg.txt \
+	$(DOCOBJ)/advmenu.txt \
+	$(DOCOBJ)/readmenu.txt \
+	$(DOCOBJ)/relemenu.txt \
+	$(DOCOBJ)/histmenu.txt \
 	$(DOCOBJ)/advdev.html \
 	$(DOCOBJ)/license.html \
 	$(DOCOBJ)/advmame.html \
@@ -880,7 +892,11 @@ EMU_DOC_BIN = \
 	$(DOCOBJ)/faq.html \
 	$(DOCOBJ)/install.html \
 	$(DOCOBJ)/advv.html \
-	$(DOCOBJ)/advcfg.html
+	$(DOCOBJ)/advcfg.html \
+	$(DOCOBJ)/advmenu.html \
+	$(DOCOBJ)/readmenu.html \
+	$(DOCOBJ)/relemenu.html \
+	$(DOCOBJ)/histmenu.html
 ifeq ($(CONF_SYSTEM),unix)
 EMU_DOC_BIN += \
 	$(DOCOBJ)/cardlinx.txt \
@@ -918,16 +934,14 @@ endif
 EMU_ROOT_BIN = \
 	$(OBJ)/$(EMUNAME)$(EXE) \
 	$(VOBJ)/advv$(EXE) \
-	$(CFGOBJ)/advcfg$(EXE)
-ifeq ($(CONF_EMU),mess)
-EMU_ROOT_BIN += \
-	$(srcdir)/support/sysinfo.dat
-else
+	$(CFGOBJ)/advcfg$(EXE) \
+	$(MENUOBJ)/advmenu$(EXE)
 EMU_ROOT_BIN += \
 	$(srcdir)/support/event.dat \
 	$(srcdir)/support/history.dat \
-	$(srcdir)/support/hiscore.dat
-endif
+	$(srcdir)/support/hiscore.dat \
+	$(srcdir)/support/sysinfo.dat \
+	$(srcdir)/support/category.ini
 ifeq ($(CONF_SYSTEM),unix)
 EMU_ROOT_BIN += \
 	$(KOBJ)/advk$(EXE) \
@@ -935,6 +949,7 @@ EMU_ROOT_BIN += \
 	$(JOBJ)/advj$(EXE) \
 	$(MOBJ)/advm$(EXE) \
 	$(DOCOBJ)/advmame.1 \
+	$(DOCOBJ)/advmenu.1 \
 	$(DOCOBJ)/advdev.1 \
 	$(DOCOBJ)/advv.1 \
 	$(DOCOBJ)/advcfg.1 \
@@ -942,10 +957,8 @@ EMU_ROOT_BIN += \
 	$(DOCOBJ)/advs.1 \
 	$(DOCOBJ)/advj.1 \
 	$(DOCOBJ)/advm.1
-ifeq ($(CONF_EMU),mess)
 EMU_ROOT_BIN += \
 	$(srcdir)/support/advmess.1
-endif
 endif
 ifeq ($(CONF_SYSTEM),dos)
 EMU_ROOT_BIN += \
@@ -953,18 +966,20 @@ EMU_ROOT_BIN += \
 	$(KOBJ)/advk$(EXE) \
 	$(SOBJ)/advs$(EXE) \
 	$(JOBJ)/advj$(EXE) \
-	$(MOBJ)/advm$(EXE)
-ifeq ($(CONF_EMU),mess)
-EMU_ROOT_BIN += $(srcdir)/support/advmessv.bat $(srcdir)/support/advmessc.bat
-endif
+	$(MOBJ)/advm$(EXE) \
+	$(srcdir)/support/advmessv.bat \
+	$(srcdir)/support/advmessc.bat \
+	$(srcdir)/support/advmenuv.bat \
+	$(srcdir)/support/advmenuc.bat
 endif
 ifeq ($(CONF_SYSTEM),windows)
 EMU_ROOT_BIN += \
 	$(srcdir)/advance/svgalib/svgawin/driver/svgawin.sys \
-	$(srcdir)/advance/svgalib/svgawin/install/svgawin.exe
-ifeq ($(CONF_EMU),mess)
-EMU_ROOT_BIN += $(srcdir)/support/advmessv.bat $(srcdir)/support/advmessc.bat
-endif
+	$(srcdir)/advance/svgalib/svgawin/install/svgawin.exe \
+	$(srcdir)/support/advmessv.bat \
+	$(srcdir)/support/advmessc.bat \
+	$(srcdir)/support/advmenuv.bat \
+	$(srcdir)/support/advmenuc.bat
 endif
 
 EMU_DIST_FILE_SRC = advance$(CONF_EMU)-$(EMUVERSION)
@@ -986,9 +1001,7 @@ dist: $(DOCOBJ)/reademu.txt $(DOCOBJ)/releemu.txt $(DOCOBJ)/histemu.txt $(DOCOBJ
 	cp $(EMU_ADVANCE_SRC) $(EMU_DIST_DIR_SRC)/advance
 	mkdir $(EMU_DIST_DIR_SRC)/support
 	cp $(EMU_SUPPORT_SRC) $(EMU_DIST_DIR_SRC)/support
-ifneq ($(CONF_EMU),mess)
 	cp -R $(srcdir)/support/free $(EMU_DIST_DIR_SRC)/support
-endif
 	mkdir $(EMU_DIST_DIR_SRC)/advance/linux
 	cp $(LINUX_SRC) $(EMU_DIST_DIR_SRC)/advance/linux
 	mkdir $(EMU_DIST_DIR_SRC)/advance/dos
@@ -1039,6 +1052,8 @@ endif
 	cp $(I_SRC) $(EMU_DIST_DIR_SRC)/advance/i
 	mkdir $(EMU_DIST_DIR_SRC)/advance/cfg
 	cp $(CFG_SRC) $(EMU_DIST_DIR_SRC)/advance/cfg
+	mkdir $(EMU_DIST_DIR_SRC)/advance/menu
+	cp $(MENU_SRC) $(EMU_DIST_DIR_SRC)/advance/menu
 	mkdir $(EMU_DIST_DIR_SRC)/advance/line
 	cp $(LINE_SRC) $(EMU_DIST_DIR_SRC)/advance/line
 	mkdir $(EMU_DIST_DIR_SRC)/advance/d2
@@ -1048,14 +1063,10 @@ endif
 	mkdir $(EMU_DIST_DIR_SRC)/advance/expat
 	cp $(EXPAT_SRC) $(EMU_DIST_DIR_SRC)/advance/expat
 	mkdir $(EMU_DIST_DIR_SRC)/contrib
-	mkdir $(EMU_DIST_DIR_SRC)/contrib/mame
-	cp -R $(EMU_CONTRIB_SRC) $(EMU_DIST_DIR_SRC)/contrib/mame
-ifeq ($(CONF_EMU),mess)
+	cp -R $(EMU_CONTRIB_SRC) $(EMU_DIST_DIR_SRC)/contrib
+	cp -R $(srcdir)/src $(EMU_DIST_DIR_SRC)
 	cp -R $(srcdir)/srcmess $(EMU_DIST_DIR_SRC)
 	cp -R $(srcdir)/mess $(EMU_DIST_DIR_SRC)
-else
-	cp -R $(srcdir)/src $(EMU_DIST_DIR_SRC)
-endif
 	find $(EMU_DIST_DIR_SRC) \( -name "*.dat" \) -type f -exec dtou {} \;
 	rm -f $(EMU_DIST_FILE_SRC).tar.gz
 	tar cfzo $(EMU_DIST_FILE_SRC).tar.gz $(EMU_DIST_DIR_SRC)
@@ -1075,6 +1086,7 @@ else
 	cp $(DOCOBJ)/license.txt $(EMU_DIST_DIR_BIN)/copying.txt
 endif
 	cp $(EMU_ROOT_BIN) $(EMU_DIST_DIR_BIN)
+	cp $(subst mame,mess,$(EMU_ROOT_BIN)) $(EMU_DIST_DIR_BIN)
 	mkdir $(EMU_DIST_DIR_BIN)/doc
 	cp $(EMU_DOC_BIN) $(EMU_DIST_DIR_BIN)/doc
 	mkdir $(EMU_DIST_DIR_BIN)/contrib
